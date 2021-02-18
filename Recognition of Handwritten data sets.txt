@@ -1,0 +1,83 @@
+import numpy
+import scipy.special
+import pandas as pd
+
+class neuralnetwork :
+
+    def __init__(self, inputcodes, hiddencodes, outputcodes, learningrate):
+        self.incodes = inputcodes
+        self.hicodes = hiddencodes
+        self.outcodes = outputcodes
+        self.lr = learningrate
+        self.wih = numpy.random.normal(0.0, pow(self.hicodes, -0.5), (self.hicodes,self.incodes))
+        self.who = numpy.random.normal(0.0, pow(self.outcodes, -0.5), (self.outcodes,self.hicodes))
+        self.activation_function = lambda x: scipy.special.expit(x)
+        pass
+
+    def train(self, input_list, target_list) :
+        inputs = numpy.array(input_list, ndmin = 2).T
+        target = numpy.array(target_list, ndmin = 2).T
+        hidden_input = numpy.dot(self.wih, inputs)
+        hidden_output = self.activation_function(hidden_input)
+        final_input = numpy.dot(self.who, hidden_output)
+        final_output = self.activation_function(final_input)
+        output_error = target - final_output
+        hidden_error = numpy.dot(self.who.T, output_error)
+        self.who += self.lr * numpy.dot((output_error * final_output * (1 - final_output)), numpy.transpose(hidden_output))
+        self.wih += self.lr * numpy.dot((hidden_error * hidden_output * (1 - hidden_output)),
+                                        numpy.transpose(inputs))
+        pass
+
+    def query(self, input_list):
+        inputs = numpy.array(input_list, ndmin=2).T
+        hidden_input = numpy.dot(self.wih, inputs)
+        hidden_output = self.activation_function(hidden_input)
+        final_input = numpy.dot(self.who, hidden_output)
+        final_output = self.activation_function(final_input)
+
+        return final_output
+
+input_nodes = 784
+hidden_nodes = 200
+output_nodes = 10
+learning_grate = 0.1
+
+n = neuralnetwork(input_nodes, hidden_nodes, output_nodes, learning_grate)
+
+traindata_file = open("C:/Users/86189/.kaggle/train.csv", 'r')
+traindata_list = traindata_file.readlines()
+traindata_file.close()
+
+num = 5
+
+for i in range(num):
+    for record in traindata_list[1:]:
+        all_values = record.split(',')
+        inputs = (numpy.asfarray(all_values[1:])/ 255.0 * 0.99) + 0.01
+        target = numpy.zeros(output_nodes) + 0.01
+        target[int(all_values[0])] = 0.99
+        n.train(inputs, target)
+        pass
+    pass
+
+testdata_file = open("C:/Users/86189/.kaggle/test.csv",'r')
+testdata_list = testdata_file.readlines()
+testdata_file.close()
+
+list = []
+id = 1
+
+for record in testdata_list[1:]:
+    all_values = record.split(',')
+    inputs = (numpy.asfarray(all_values) / 255.0 * 0.99) + 0.01
+    outputs = n.query(inputs)
+    lable = numpy.argmax(outputs)
+    list.append([id,lable])
+    df = pd.DataFrame(list, columns=['ImageId', 'Label'])
+    id += 1
+    pass
+
+
+df.to_csv('submission.csv', index=False)
+
+
